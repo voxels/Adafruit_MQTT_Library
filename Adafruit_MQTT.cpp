@@ -205,6 +205,7 @@ int8_t Adafruit_MQTT::connect(const char *user, const char *pass)
 }
 
 uint16_t Adafruit_MQTT::processPacketsUntil(uint8_t *buffer, uint8_t waitforpackettype, uint16_t timeout) {
+  // DEBUG_PRINTLN(F("Process Packets Until called"));
   uint16_t len;
   while (len = readFullPacket(buffer, MAXBUFFERSIZE, timeout)) {
 
@@ -222,16 +223,17 @@ uint16_t Adafruit_MQTT::processPacketsUntil(uint8_t *buffer, uint8_t waitforpack
 }
 
 uint16_t Adafruit_MQTT::readFullPacket(uint8_t *buffer, uint16_t maxsize, uint16_t timeout) {
+    // DEBUG_PRINTLN(F("Read Full Packet called"));
   // will read a packet and Do The Right Thing with length
   uint8_t *pbuff = buffer;
 
-  uint8_t rlen;
+  uint16_t rlen;
 
   // read the packet type:
   rlen = readPacket(pbuff, 1, timeout);
   if (rlen != 1) return 0;
 
-  DEBUG_PRINT(F("Packet Type:\t")); DEBUG_PRINTBUFFER(pbuff, rlen);
+  // DEBUG_PRINT(F("Packet Type:\t"));/*DEBUG_PRINTBUFFER(pbuff, rlen);*/
   pbuff++;
 
   uint32_t value = 0;
@@ -253,16 +255,19 @@ uint16_t Adafruit_MQTT::readFullPacket(uint8_t *buffer, uint16_t maxsize, uint16
     }
   } while (encodedByte & 0x80);
 
-  DEBUG_PRINT(F("Packet Length:\t")); DEBUG_PRINTLN(value);
+  // DEBUG_PRINT(F("Packet Length:\t")); DEBUG_PRINTLN(value);
   
   if (value > (maxsize - (pbuff-buffer) - 1)) {
       DEBUG_PRINTLN(F("Packet too big for buffer"));
       rlen = readPacket(pbuff, (maxsize - (pbuff-buffer) - 1), timeout);
   } else {
-    rlen = readPacket(pbuff, value, timeout);
+      // DEBUG_PRINT("Current value for timeout:\t"); DEBUG_PRINTLN(timeout);    
+      // DEBUG_PRINT("Current value for rlen:\t"); DEBUG_PRINTLN(rlen);
+      rlen = readPacket(pbuff, value, timeout);
+      // DEBUG_PRINT("UPDATED value for rlen:\t"); DEBUG_PRINTLN(rlen);
   }
-  //DEBUG_PRINT(F("Remaining packet:\t")); DEBUG_PRINTBUFFER(pbuff, rlen);
 
+  // DEBUG_PRINT(F("Remaining packet:\t")); DEBUG_PRINTBUFFER(pbuff, rlen);
   return ((pbuff - buffer)+rlen);
 }
 
@@ -407,6 +412,7 @@ bool Adafruit_MQTT::unsubscribe(Adafruit_MQTT_Subscribe *sub) {
 }
 
 void Adafruit_MQTT::processPackets(int16_t timeout) {
+ DEBUG_PRINT(F("Process Packets called")); 
   uint16_t len;
 
   uint32_t elapsed = 0, endtime, starttime = millis();
@@ -451,35 +457,74 @@ void Adafruit_MQTT::processPackets(int16_t timeout) {
 }
 
 Adafruit_MQTT_Subscribe *Adafruit_MQTT::readSubscription(int16_t timeout) {
+  // DEBUG_PRINTLN(F("Read subscription called"));
   uint16_t i, topiclen, datalen;
 
   // Check if data is available to read.
   uint16_t len = readFullPacket(buffer, MAXBUFFERSIZE, timeout); // return one full packet
   if (!len)
     return NULL;  // No data available, just quit.
-  DEBUG_PRINT("Packet len: "); DEBUG_PRINTLN(len); 
-  DEBUG_PRINTBUFFER(buffer, len);
+  DEBUG_PRINT("Found Packet len: "); DEBUG_PRINTLN(len); 
+  // DEBUG_PRINTBUFFER(buffer, len);
+  uint8_t encodedByte = buffer[0]; // save the last read val
+  uint32_t intermediate = encodedByte & 0x7F;
+  DEBUG_PRINT("Found intermediate: "); DEBUG_PRINTLN(intermediate);   
+  DEBUG_PRINTBUFFER(buffer,16);
 
   // Parse out length of packet.
-  topiclen = buffer[3];
-  DEBUG_PRINT(F("Looking for subscription len ")); DEBUG_PRINTLN(topiclen);
+  // http://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html
+  // I think this might be encoded in the first bit but rather than figure it out i'm just going to save time:
+
+  int bitshift = 0;
+
+  if( len < 128 )
+  {
+    // Do nothing
+  }
+  else if( len >=128 && len < 16384 )
+  {
+    bitshift = 1;
+  }
+  else if( len >=13384 && len < 2097151 )
+  {
+    bitshift = 2;
+  }
+  else
+  {
+    bitshift = 3;
+  }
+
+  int index = 3 + bitshift;
+  topiclen = buffer[index];
+
+  // DEBUG_PRINT(F("Looking for subscription length:\t")); DEBUG_PRINTLN(topiclen);
 
   // Find subscription associated with this packet.
   for (i=0; i<MAXSUBSCRIPTIONS; i++) {
     if (subscriptions[i]) {
       // Skip this subscription if its name length isn't the same as the
       // received topic name.
-      if (strlen(subscriptions[i]->topic) != topiclen)
+      if (strlen(subscriptions[i]->topic) != topiclen)        
+        // DEBUG_PRINT(F("Topic length:\t")); DEBUG_PRINTLN(strlen(subscriptions[i]->topic));
+        // DEBUG_PRINT(F("Compare length:\t")); DEBUG_PRINTLN(topiclen);
         continue;
+        // DEBUG_PRINT(F("Checking subscription topic:\t")); DEBUG_PRINTLN(subscriptions[i]->topic);
       // Stop if the subscription topic matches the received topic. Be careful
       // to make comparison case insensitive.
-      if (strncasecmp((char*)buffer+4, subscriptions[i]->topic, topiclen) == 0) {
-        DEBUG_PRINT(F("Found sub #")); DEBUG_PRINTLN(i);
+      if (strncasecmp((char*)buffer+4+bitshift, subscriptions[i]->topic, topiclen) == 0) {
+        // DEBUG_PRINT(F("Found sub #")); DEBUG_PRINTLN(i);
         break;
+      }
+      else
+      {
+        // DEBUG_PRINTLN(F("No match"));        
       }
     }
   }
+
   if (i==MAXSUBSCRIPTIONS) return NULL; // matching sub not found ???
+  
+  DEBUG_PRINT(F("Found sub #")); DEBUG_PRINTLN();
 
   uint8_t packet_id_len = 0;
   uint16_t packetid;
@@ -491,15 +536,28 @@ Adafruit_MQTT_Subscribe *Adafruit_MQTT::readSubscription(int16_t timeout) {
     packetid |= buffer[topiclen+5];
   }
 
+
+  // DEBUG_PRINTER.println("\nCreating lastread");
+  // DEBUG_PRINTER.print("Buffer length:");
+  DEBUG_PRINTER.println(len);
+  // printBuffer(buffer, len);
+
   // zero out the old data
+
+  // DEBUG_PRINTER.print("Subscription data length:");
+  DEBUG_PRINTER.println(SUBSCRIPTIONDATALEN);
   memset(subscriptions[i]->lastread, 0, SUBSCRIPTIONDATALEN);
 
-  datalen = len - topiclen - packet_id_len - 4;
+  datalen = len - topiclen - packet_id_len - 4 - bitshift;
   if (datalen > SUBSCRIPTIONDATALEN) {
     datalen = SUBSCRIPTIONDATALEN-1; // cut it off
   }
+
+  // DEBUG_PRINTER.print("calculated data length:");
+  DEBUG_PRINTER.println(datalen);
+
   // extract out just the data, into the subscription object itself
-  memmove(subscriptions[i]->lastread, buffer+4+topiclen+packet_id_len, datalen);
+  memmove(subscriptions[i]->lastread, buffer+4+bitshift+topiclen+packet_id_len, datalen);
   subscriptions[i]->datalen = datalen;
   DEBUG_PRINT(F("Data len: ")); DEBUG_PRINTLN(datalen);
   DEBUG_PRINT(F("Data: ")); DEBUG_PRINTLN((char *)subscriptions[i]->lastread);

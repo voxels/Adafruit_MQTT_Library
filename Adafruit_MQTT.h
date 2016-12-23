@@ -13,6 +13,7 @@
 // copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 // AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
@@ -34,7 +35,7 @@
 #define ADAFRUIT_MQTT_VERSION_PATCH 2
 
 // Uncomment/comment to turn on/off debug output messages.
-//#define MQTT_DEBUG
+// #define MQTT_DEBUG
 // Uncomment/comment to turn on/off error output messages.
 #define MQTT_ERROR
 
@@ -95,7 +96,7 @@
 // Largest full packet we're able to send.
 // Need to be able to store at least ~90 chars for a connect packet with full
 // 23 char client ID.
-#define MAXBUFFERSIZE (150)
+#define MAXBUFFERSIZE (2048)
 
 #define MQTT_CONN_USERNAMEFLAG    0x80
 #define MQTT_CONN_PASSWORDFLAG    0x40
@@ -111,9 +112,9 @@
 // how much data we save in a subscription object
 // eg max-subscription-payload-size
 #if defined  (__AVR_ATmega32U4__) || defined(__AVR_ATmega328P__)
-  #define SUBSCRIPTIONDATALEN 20
+  #define SUBSCRIPTIONDATALEN 2048
 #else
-  #define SUBSCRIPTIONDATALEN 100
+  #define SUBSCRIPTIONDATALEN 2048
 #endif
 
 class AdafruitIO_Feed;  // forward decl

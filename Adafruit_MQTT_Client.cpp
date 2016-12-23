@@ -49,28 +49,35 @@ bool Adafruit_MQTT_Client::connected() {
 
 uint16_t Adafruit_MQTT_Client::readPacket(uint8_t *buffer, uint16_t maxlen,
                                           int16_t timeout) {
+  // DEBUG_PRINT("Read packet with max length:\t"); DEBUG_PRINTLN(maxlen);
+
   /* Read data until either the connection is closed, or the idle timeout is reached. */
   uint16_t len = 0;
   int16_t t = timeout;
 
   while (client->connected() && (timeout >= 0)) {
-    //DEBUG_PRINT('.');
+    // DEBUG_PRINT('.');
     while (client->available()) {
-      //DEBUG_PRINT('!');
+      // DEBUG_PRINT('!');
       char c = client->read();
       timeout = t;  // reset the timeout
       buffer[len] = c;
-      //DEBUG_PRINTLN((uint8_t)c, HEX);
+      // DEBUG_PRINTLN((uint8_t)c, HEX);
       len++;
+      // DEBUG_PRINTLN(len);
       if (len == maxlen) {  // we read all we want, bail
-        DEBUG_PRINT(F("Read data:\t"));
-        DEBUG_PRINTBUFFER(buffer, len);
+        // DEBUG_PRINT(F("Read data:\t"));
+        // DEBUG_PRINTBUFFER(buffer, len);
+        // DEBUG_PRINT("FOUND MAX LENGTH:\t"); DEBUG_PRINTLN(maxlen);
+        // DEBUG_PRINT("FOUND LENGTH:\t"); DEBUG_PRINTLN(len);
         return len;
       }
     }
     timeout -= MQTT_CLIENT_READINTERVAL_MS;
     delay(MQTT_CLIENT_READINTERVAL_MS);
   }
+
+  // DEBUG_PRINT("Client is not connected or not available.  FOUND LENGTH:\t"); DEBUG_PRINTLN(len);
   return len;
 }
 
