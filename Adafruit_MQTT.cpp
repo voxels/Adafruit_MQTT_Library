@@ -539,13 +539,13 @@ Adafruit_MQTT_Subscribe *Adafruit_MQTT::readSubscription(int16_t timeout) {
 
   // DEBUG_PRINTER.println("\nCreating lastread");
   // DEBUG_PRINTER.print("Buffer length:");
-  DEBUG_PRINTER.println(len);
+//  DEBUG_PRINTER.println(len);
   // printBuffer(buffer, len);
 
   // zero out the old data
 
   // DEBUG_PRINTER.print("Subscription data length:");
-  DEBUG_PRINTER.println(SUBSCRIPTIONDATALEN);
+//  DEBUG_PRINTER.println(SUBSCRIPTIONDATALEN);
   memset(subscriptions[i]->lastread, 0, SUBSCRIPTIONDATALEN);
 
   datalen = len - topiclen - packet_id_len - 4 - bitshift;
@@ -554,7 +554,7 @@ Adafruit_MQTT_Subscribe *Adafruit_MQTT::readSubscription(int16_t timeout) {
   }
 
   // DEBUG_PRINTER.print("calculated data length:");
-  DEBUG_PRINTER.println(datalen);
+//  DEBUG_PRINTER.println(datalen);
 
   // extract out just the data, into the subscription object itself
   memmove(subscriptions[i]->lastread, buffer+4+bitshift+topiclen+packet_id_len, datalen);
